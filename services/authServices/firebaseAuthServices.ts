@@ -2,6 +2,7 @@ import { getAuth } from "firebase-admin/auth";
 import User from "../../models/userModel";
 import { CustomError } from "../../utils/customError";
 import { generateToken } from "../../utils/jwtUtils";
+import { firebaseAdminAuth } from "../../config/firebaseAdmin";
 
 /**
  * Logs in a user using a Firebase ID token.
@@ -19,23 +20,34 @@ import { generateToken } from "../../utils/jwtUtils";
  */
 export const firebaseLoginService = async (firebaseToken: string) => {
   try {
-    const decoded = await getAuth().verifyIdToken(firebaseToken);
-    const firebaseUid = decoded.uid;
-    const authProvider = decoded.firebase.sign_in_provider;
-    const email = decoded.email;
+    const decoded = await firebaseAdminAuth.verifyIdToken(firebaseToken);
 
-    if (authProvider !== "google" && authProvider !== "github") {
+    console.log("[🪪 Decoded Firebase Token]:", decoded);
+
+    const firebaseUid = decoded.uid;
+    const email = decoded.email ?? `${firebaseUid}@noemail.com`;
+
+
+    const rawAuthProvider = decoded.firebase.sign_in_provider;
+    let authProvider: "google" | "github";
+
+    if (rawAuthProvider === "google.com") {
+      authProvider = "google";
+    } else if (rawAuthProvider === "github.com") {
+      authProvider = "github";
+    } else {
       throw new CustomError("Unsupported auth provider", 400);
     }
 
     let user = await User.findOne({ firebaseUid });
-
+    
     if (!user) {
       try {
         user = await User.create({
           email,
           authProvider,
           firebaseUid,
+          username: decoded.name ?? "User"
         });
       } catch (error) {
         throw new CustomError(
@@ -44,22 +56,29 @@ export const firebaseLoginService = async (firebaseToken: string) => {
         );
       }
     }
+    if (user && !user.username && decoded.name) {
+  user.username = decoded.name;
+  await user.save();
+}
     const token = generateToken({
       id: user._id,
       email: user.email,
       authProvider: user.authProvider,
     });
 
-    return {
-      token,
-      user: {
-        id: user._id,
-        email: user.email,
-        authProvider: user.authProvider,
-      },
-    };
+   return {
+  token,
+  user: {
+    id: user._id,
+    username: user.username,
+    email: user.email,
+    authProvider: user.authProvider,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+  },
+};
   } catch (err: any) {
-    // If the error is already a CustomError, rethrow it
+    // If the error is already a CustomE  rror, rethrow it
     if (err instanceof CustomError) {
       throw err;
     }

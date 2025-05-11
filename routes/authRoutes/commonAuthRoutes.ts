@@ -32,7 +32,7 @@ const router: Router = express.Router();
  */
 router
   .route("/userLogout")
-  .get(ValidationMiddleWare.validateToken(), userLogout);
+  .get( userLogout);
 
 /**
  * @swagger
@@ -74,7 +74,7 @@ router
  */
 router
   .route("/userProfile")
-  .get(ValidationMiddleWare.validateToken(), getUserProfile);
+   .get(ValidationMiddleWare.validateToken(), getUserProfile);
 
 /**
  * @swagger
