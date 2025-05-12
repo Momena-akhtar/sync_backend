@@ -137,5 +137,4 @@ dist
 
 todo.txt
 
-# Service account key file
-serviceAccountKey.json
+"serviceAccountKey.json" 
